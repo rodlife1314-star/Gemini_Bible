@@ -2,189 +2,9 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Search, Printer, Settings, Clock, BookOpen, AlertTriangle, Users, Package, Flame, Snowflake, ShieldCheck, MessageCircle, X, Send, Trash2, Menu, ChefHat, Info, Activity, Library, Download, GripVertical, Lock, CheckCircle2, AlertCircle, FileText, Hash, Layers, Zap, Database } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
-import { Module, ChatMessage, Recipe, MenuMatrixEntry, Cookbook } from './types';
+import { Module, ChatMessage, Recipe, MenuMatrixEntry, Cookbook, JemmaMode } from './types';
 import { bookshelves } from './data/bookshelves';
 import { recipes } from './data/recipes';
-
-const DB_NAME = 'ForgeDB';
-const STORE_NAME = 'jemmaChat';
-const DB_VERSION = 1;
-
-const App: React.FC = () => {
-
-  // CLASSICAL ENTRIES (LAROUSSE / ESCOFFIER)
-  { id: "cla001", name: "Béchamel (Mother Sauce)", engine: "Luna", station: "Prep", time: "25 min", servings: 10, difficulty: "Operator",
-    ingredients: [{item:"Milk",qty:"1L",prep:"infused"},{item:"White Roux",qty:"100g",prep:""}],
-    method: ["Infuse milk with onion piqué", "Gradually add to roux", "Simmer 20 min", "Pass through fine sieve"],
-    allergens: ["Gluten", "Milk"], driftNotes: "Larousse foundational mother sauce.", plating: "Batch container", price: 12, cost: 3, classicNote: "One of the 5 mother sauces" },
-  { id: "cla002", name: "Velouté (Mother Sauce)", engine: "Luna", station: "Prep", time: "25 min", servings: 10, difficulty: "Operator",
-    ingredients: [{item:"White Stock",qty:"1L",prep:""},{item:"Roux",qty:"100g",prep:"white roux"}],
-    method: ["Make white roux", "Gradually add hot stock", "Simmer gently 20 min", "Pass through fine sieve"],
-    allergens: ["Gluten"], driftNotes: "Larousse foundational mother sauce – Escoffier refinement", plating: "Base for other sauces", price: 14, cost: 4, classicNote: "One of the 5 mother sauces" },
-  { id: "cla003", name: "Espagnole (Mother Sauce)", engine: "Luna", station: "Prep", time: "3 hrs", servings: 10, difficulty: "Head Chef",
-    ingredients: [{item:"Brown Stock",qty:"2L",prep:""},{item:"Brown Roux",qty:"150g",prep:""},{item:"Mirepoix",qty:"100g",prep:""}],
-    method: ["Cook mirepoix", "Add brown stock & roux", "Simmer and skim for 3 hours"],
-    allergens: ["Gluten"], driftNotes: "Rich, deep, and fundamental.", plating: "Base for Demi-Glace", price: 18, cost: 5, classicNote: "The brown mother sauce" },
-  { id: "cla004", name: "Hollandaise", engine: "Luna", station: "Hot", time: "8 min", servings: 4, difficulty: "Head Chef",
-    ingredients: [{item:"Egg Yolks",qty:"3 each",prep:""},{item:"Clarified Butter",qty:"250g",prep:""}],
-    method: ["Whisk yolks over bain-marie", "Slowly emulsify butter", "Finish with lemon"],
-    allergens: ["Egg", "Milk"], driftNotes: "Temperature sensitive. Do not split.", plating: "Immediate service", price: 15, cost: 4 },
-  { id: "cla005", name: "Béarnaise", engine: "Luna", station: "Hot", time: "10 min", servings: 4, difficulty: "Head Chef",
-    ingredients: [{item:"Hollandaise Base",qty:"200ml",prep:""},{item:"Tarragon Reduction",qty:"20ml",prep:""}],
-    method: ["Fold reduction and fresh tarragon into hollandaise"],
-    allergens: ["Egg", "Milk"], driftNotes: "Escoffier classic steak accompaniment.", plating: "Immediate service", price: 18, cost: 5 },
-  { id: "cla006", name: "Classic French Omelette", engine: "Helios", station: "Hot Line", time: "3 min", servings: 1, difficulty: "Head Chef",
-    ingredients: [{item:"Eggs",qty:"3 each",prep:""},{item:"Butter",qty:"20g",prep:""}],
-    method: ["Whisk eggs with no color", "Cook in foaming butter", "Roll tightly with no browning"],
-    allergens: ["Egg", "Milk"], driftNotes: "Texture must be baveuse.", plating: "Warm plate", price: 14, cost: 3 },
-  { id: "cla007", name: "Consommé", engine: "Luna", station: "Prep", time: "2 hrs", servings: 6, difficulty: "Head Chef",
-    ingredients: [{item:"Stock",qty:"2L",prep:""},{item:"Clearmeat",qty:"300g",prep:""}],
-    method: ["Simmer clearmeat with stock", "Allow raft to form", "Strain through muslin"],
-    allergens: ["Egg"], driftNotes: "Crystal clarity is the only success.", plating: "Soup bowl", price: 18, cost: 5 },
-  { id: "cla008", name: "Dauphinoise Potatoes", engine: "Helios", station: "Oven", time: "1 hr", servings: 4, difficulty: "Line",
-    ingredients: [{item:"Potatoes",qty:"1kg",prep:"sliced thin"},{item:"Cream",qty:"500ml",prep:""},{item:"Garlic",qty:"2 cloves",prep:""}],
-    method: ["Layer potatoes with cream and garlic", "Bake until tender"],
-    allergens: ["Milk"], driftNotes: "Golden crust, cream fully absorbed.", plating: "Side dish", price: 20, cost: 6 },
-  { id: "cla009", name: "Crème Brûlée", engine: "Aether", station: "Pastry", time: "40 min", servings: 4, difficulty: "Line",
-    ingredients: [{item:"Cream",qty:"500ml",prep:""},{item:"Egg Yolks",qty:"6 each",prep:""},{item:"Vanilla Pod",qty:"1",prep:""}],
-    method: ["Cook custard gently", "Chill", "Sugar and torch at service"],
-    allergens: ["Egg", "Milk"], driftNotes: "Snap must be audible.", plating: "Ramekin", price: 12, cost: 3 },
-  { id: "cla010", name: "Soufflé au Chocolat", engine: "Helios", station: "Pastry", time: "18 min", servings: 1, difficulty: "Head Chef",
-    ingredients: [{item:"Chocolate Base",qty:"100g",prep:""},{item:"Egg Whites",qty:"3 each",prep:""}],
-    method: ["Fold whites into base", "Bake to order", "Serve immediately"],
-    allergens: ["Egg", "Milk", "Gluten"], driftNotes: "Height is everything.", plating: "Ramekin", price: 15, cost: 4 },
-
-  // ADDITIONAL FORGE REGISTER FILLERS
-  { id: "f001", name: "Lemon Muslins", engine: "Luna", station: "Prep", time: "5 min", servings: 10, difficulty: "Operator",
-    ingredients: [{item:"Lemons",qty:"10",prep:"halved"},{item:"Muslin Cloth",qty:"10",prep:""}],
-    method: ["Wrap lemon halves in muslin", "Tie with twine"],
-    allergens: [], driftNotes: "Zero seed escape policy.", plating: "Garnish", price: 5, cost: 1 },
-  { id: "f002", name: "Herb Oil (Galyons System)", engine: "Luna", station: "Prep", time: "15 min", servings: 20, difficulty: "Operator",
-    ingredients: [{item:"Parsley",qty:"200g",prep:""},{item:"Pomace Oil",qty:"500ml",prep:""}],
-    method: ["Blanch herbs", "Blend with oil", "Strain through coffee filter"],
-    allergens: [], driftNotes: "Emerald green color mandatory.", plating: "Oil bottle", price: 8, cost: 2 },
-  { id: "f003", name: "Smoked Garlic Butter", engine: "Luna", station: "Prep", time: "10 min", servings: 10, difficulty: "Operator",
-    ingredients: [{item:"Butter",qty:"1kg",prep:""},{item:"Smoked Garlic",qty:"100g",prep:"purée"}],
-    method: ["Beat butter with garlic purée", "Roll and chill"],
-    allergens: ["Milk"], driftNotes: "Lutyens signature steak finish.", plating: "Butter dish", price: 12, cost: 3 },
-  { id: "f004", name: "Potato Bun (Toasted)", engine: "Helios", station: "Hot Line", time: "2 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Bun",qty:"1",prep:""},{item:"Butter",qty:"5g",prep:""}],
-    method: ["Butter and toast cut side until golden"],
-    allergens: ["Gluten", "Milk"], driftNotes: "Do not dry out.", plating: "Burger base", price: 4, cost: 1 },
-  { id: "f005", name: "Watercress Garnish", engine: "Luna", station: "Cold", time: "1 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Watercress",qty:"12g",prep:""},{item:"Vinaigrette",qty:"2ml",prep:""}],
-    method: ["Dress lightly at pass"],
-    allergens: [], driftNotes: "Crunch must remain.", plating: "Garnish", price: 3, cost: 0.5 },
-  { id: "f006", name: "Thick Cut Chips", engine: "Helios", station: "Fry", time: "8 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Potatoes",qty:"145g",prep:"triple cooked"}],
-    method: ["Fry at 180°C until crisp", "Salt immediately"],
-    allergens: [], driftNotes: "Triple cooked discipline - fluffy interior.", plating: "Pot", price: 6, cost: 1.5 },
-  { id: "f007", name: "Stealth Fries", engine: "Helios", station: "Fry", time: "4 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Fries",qty:"155g",prep:""}],
-    method: ["Fry until golden"],
-    allergens: [], driftNotes: "Keep hot.", plating: "Cone", price: 5, cost: 1.2 },
-  { id: "f008", name: "Sanetra Sourdough Slice", engine: "Helios", station: "Hot Line", time: "3 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Sourdough",qty:"1 slice",prep:""}],
-    method: ["Grill until char marked"],
-    allergens: ["Gluten"], driftNotes: "Char adds deterministic flavor.", plating: "Side", price: 3, cost: 0.8 },
-  { id: "f009", name: "Tomato Salsa (Bruschetta)", engine: "Luna", station: "Prep", time: "15 min", servings: 12, difficulty: "Line",
-    ingredients: [{item:"Tomatoes",qty:"1kg",prep:"diced"},{item:"Basil",qty:"20g",prep:""},{item:"Garlic",qty:"5g",prep:""}],
-    method: ["Mix and marinate for 1 hour"],
-    allergens: [], driftNotes: "Drain excess liquid.", plating: "Batch tub", price: 10, cost: 2.5 },
-  { id: "f010", name: "Garlic Butter (Pizza)", engine: "Luna", station: "Prep", time: "10 min", servings: 20, difficulty: "Operator",
-    ingredients: [{item:"Butter",qty:"500g",prep:""},{item:"Garlic Purée",qty:"50g",prep:""},{item:"Parsley",qty:"10g",prep:""}],
-    method: ["Cream ingredients together"],
-    allergens: ["Milk"], driftNotes: "Consistent garlic punch.", plating: "Squeeze bottle", price: 12, cost: 3 },
-  { id: "f011", name: "Tomato Basil Sauce (Pizza)", engine: "Luna", station: "Prep", time: "1 hr", servings: 30, difficulty: "Operator",
-    ingredients: [{item:"San Marzano Tomatoes",qty:"2.5kg",prep:""},{item:"Basil",qty:"50g",prep:""}],
-    method: ["Hand crush tomatoes", "Mix with torn basil and salt"],
-    allergens: [], driftNotes: "Do not blend. Texture is critical.", plating: "Bucket", price: 15, cost: 4 },
-  { id: "f012", name: "Truffle Oil Finish", engine: "Luna", station: "Cold", time: "1 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Truffle Oil",qty:"2ml",prep:""}],
-    method: ["Drizzle at pass"],
-    allergens: [], driftNotes: "Restraint is a virtue.", plating: "Finish", price: 5, cost: 1 },
-  { id: "f013", name: "Parmesan Shavings", engine: "Luna", station: "Prep", time: "5 min", servings: 10, difficulty: "Line",
-    ingredients: [{item:"Parmesan Block",qty:"100g",prep:""}],
-    method: ["Shave using peeler"],
-    allergens: ["Milk"], driftNotes: "Consistent thinness.", plating: "Lidded box", price: 15, cost: 4 },
-  { id: "f014", name: "Balsamic Glaze", engine: "Luna", station: "Prep", time: "30 min", servings: 20, difficulty: "Operator",
-    ingredients: [{item:"Balsamic Vinegar",qty:"500ml",prep:""},{item:"Sugar",qty:"50g",prep:""}],
-    method: ["Reduce until syrupy"],
-    allergens: ["Sulphites"], driftNotes: "Escoffier reduction discipline.", plating: "Squeeze bottle", price: 14, cost: 3 },
-  { id: "f015", name: "Croutons (Polenta/Bread)", engine: "Helios", station: "Fry", time: "5 min", servings: 10, difficulty: "Line",
-    ingredients: [{item:"Bread/Polenta",qty:"200g",prep:"diced"}],
-    method: ["Deep fry until golden"],
-    allergens: ["Gluten"], driftNotes: "Maintain crunch.", plating: "Lidded box", price: 10, cost: 2 },
-  { id: "f016", name: "Anchovy Fillets (Prep)", engine: "Luna", station: "Prep", time: "2 min", servings: 12, difficulty: "Line",
-    ingredients: [{item:"Anchovies",qty:"1 tin",prep:""}],
-    method: ["Drain and portion"],
-    allergens: ["Fish"], driftNotes: "Keep chilled.", plating: "Garnish", price: 12, cost: 3 },
-  { id: "f017", name: "Lemon Wedges", engine: "Luna", station: "Prep", time: "5 min", servings: 20, difficulty: "Line",
-    ingredients: [{item:"Lemons",qty:"5",prep:""}],
-    method: ["Cut into 8ths, remove seeds"],
-    allergens: [], driftNotes: "Zero seed policy.", plating: "Garnish", price: 5, cost: 0.5 },
-  { id: "f018", name: "Rocket Garnish", engine: "Luna", station: "Cold", time: "1 min", servings: 1, difficulty: "Line",
-    ingredients: [{item:"Rocket",qty:"10g",prep:""}],
-    method: ["Wash and spin dry"],
-    allergens: [], driftNotes: "No wilting permitted.", plating: "Garnish", price: 3, cost: 0.5 },
-  { id: "f019", name: "Pine Nuts (Toasted)", engine: "Helios", station: "Oven", time: "4 min", servings: 10, difficulty: "Line",
-    ingredients: [{item:"Pine Nuts",qty:"100g",prep:""}],
-    method: ["Toast at 160°C until even golden"],
-    allergens: ["Nuts"], driftNotes: "Burn check every 60 seconds.", plating: "Lidded box", price: 18, cost: 5 },
-  { id: "f020", name: "Peppercorn Sauce (Luna Engine)", engine: "Luna", station: "Hot", time: "10 min", servings: 4, difficulty: "Line",
-    ingredients: [{item:"Green Peppercorns",qty:"20g",prep:""},{item:"Brandy",qty:"30ml",prep:""},{item:"Cream",qty:"100ml",prep:""}],
-    method: ["Sauté peppercorns", "Deglaze with brandy", "Add cream and reduce"],
-    allergens: ["Milk"], driftNotes: "Must be glossy and thick enough to coat spoon.", plating: "Sauce boat", price: 12, cost: 3 },
-  { id: "f021", name: "Beef Ragu (Bolognese)", engine: "Luna", station: "Prep", time: "4 hrs", servings: 20, difficulty: "Operator",
-    ingredients: [{item:"Minced Beef",qty:"2kg",prep:""},{item:"Soffritto",qty:"500g",prep:""},{item:"Tomato Pelati",qty:"3kg",prep:""}],
-    method: ["Sear beef", "Slow cook with soffritto and tomatoes for 4 hours"],
-    allergens: ["Celery"], driftNotes: "Deep umami development.", plating: "Batch container", price: 45, cost: 12 },
-  { id: "f022", name: "Pizza Dough (House Spec)", engine: "Luna", station: "Prep", time: "24 hrs", servings: 50, difficulty: "Operator",
-    ingredients: [{item:"Tipo 00 Flour",qty:"12.5kg",prep:""},{item:"Water",qty:"8L",prep:""},{item:"Yeast",qty:"25g",prep:""}],
-    method: ["Mix and knead", "Slow ferment for 24 hours"],
-    allergens: ["Gluten"], driftNotes: "Deterministic hydration.", plating: "Dough balls", price: 65, cost: 18 },
-  { id: "f023", name: "Chive Oil", engine: "Luna", station: "Prep", time: "10 min", servings: 20, difficulty: "Line",
-    ingredients: [{item:"Chives",qty:"250g",prep:""},{item:"Grapeseed Oil",qty:"1L",prep:""}],
-    method: ["Blanch chives and ice", "Blend with oil", "Strain through coffee filter"],
-    allergens: [], driftNotes: "Neon green requirement.", plating: "Squeeze bottle", price: 12, cost: 4 },
-  { id: "f024", name: "Pickled Red Onions", engine: "Luna", station: "Prep", time: "2 hrs", servings: 30, difficulty: "Line",
-    ingredients: [{item:"Red Onions",qty:"2kg",prep:"sliced"},{item:"Hibiscus Vinegar",qty:"500ml",prep:""}],
-    method: ["Quick pickle in hot vinegar", "Cool in liquid"],
-    allergens: [], driftNotes: "Vibrant pink contrast.", plating: "Glass jar", price: 15, cost: 3 },
-  { id: "f025", name: "Truffle Mayo", engine: "Luna", station: "Prep", time: "5 min", servings: 10, difficulty: "Line",
-    ingredients: [{item:"House Mayo",qty:"1kg",prep:""},{item:"Truffle Carpaccio",qty:"50g",prep:"minced"}],
-    method: ["Whisk together gently", "Season with black salt"],
-    allergens: ["Egg"], driftNotes: "Zero Drift: avoid over-whisking (air bubbles).", plating: "Batch jar", price: 22, cost: 7 },
-  { id: "f026", name: "Spicy Salami (Pizza Prep)", engine: "Luna", station: "Prep", time: "5 min", servings: 15, difficulty: "Line",
-    ingredients: [{item:"Ventricina Salami",qty:"500g",prep:"sliced 1mm"}],
-    method: ["Slice and layer with parchment"],
-    allergens: [], driftNotes: "Consistency in slice thickness.", plating: "Deli sheet", price: 18, cost: 6 },
-  { id: "f027", name: "Pesto Genovese", engine: "Luna", station: "Prep", time: "15 min", servings: 10, difficulty: "Line",
-    ingredients: [{item:"Basil",qty:"200g",prep:""},{item:"Pine Nuts",qty:"50g",prep:"toasted"},{item:"Pecorino",qty:"40g",prep:""}],
-    method: ["Pound in mortar & pestle for Zero Drift texture", "Add oil last"],
-    allergens: ["Nuts", "Milk"], driftNotes: "No blender rule for maximum essential oil retention.", plating: "Opaque jar", price: 20, cost: 6 },
-  { id: "f028", name: "Chicken Stock (Brown)", engine: "Luna", station: "Prep", time: "6 hrs", servings: 20, difficulty: "Operator",
-    ingredients: [{item:"Roasted Bones",qty:"5kg",prep:""},{item:"Mirepoix",qty:"1kg",prep:""}],
-    method: ["Roast bones until mahogany", "Simmer with mirepoix and aromatics", "Skim every 15 mins"],
-    allergens: [], driftNotes: "Clarity over speed.", plating: "Batch tub", price: 15, cost: 5 },
-  { id: "f029", name: "Garlic Confit", engine: "Helios", station: "Oven", time: "2 hrs", servings: 20, difficulty: "Line",
-    ingredients: [{item:"Garlic Cloves",qty:"1kg",prep:"peeled"},{item:"Olive Oil",qty:"1.2L",prep:""}],
-    method: ["Submerge garlic in oil", "Cook at 90°C for 2 hours"],
-    allergens: [], driftNotes: "Soft as butter, no color.", plating: "Oil jar", price: 18, cost: 6 },
-  { id: "f030", name: "Crispy Shallots", engine: "Helios", station: "Fry", time: "10 min", servings: 15, difficulty: "Line",
-    ingredients: [{item:"Shallots",qty:"1kg",prep:"sliced fine"},{item:"Milk",qty:"200ml",prep:""}],
-    method: ["Soak in milk", "Dredge in flour", "Fry at 140°C until golden"],
-    allergens: ["Gluten", "Milk"], driftNotes: "Must stay crisp in dry store.", plating: "Airtight box", price: 12, cost: 3 },
-  { id: "f031", name: "Chili Oil (Sichuan Style)", engine: "Luna", station: "Prep", time: "20 min", servings: 25, difficulty: "Line",
-    ingredients: [{item:"Dried Chili Flakes",qty:"200g",prep:""},{item:"Star Anise",qty:"4 each",prep:""}],
-    method: ["Pour 180°C oil over spices", "Cool and strain if required"],
-    allergens: [], driftNotes: "Capsaicin heat baseline.", plating: "Oil bottle", price: 16, cost: 4 },
-  { id: "f032", name: "Herb Crema", engine: "Luna", station: "Cold", time: "5 min", servings: 12, difficulty: "Line",
-    ingredients: [{item:"Crème Fraîche",qty:"500g",prep:""},{item:"Lemon Zest",qty:"1",prep:""},{item:"F002 Herb Oil",qty:"20ml",prep:""}],
-    method: ["Whisk gently to avoid splitting", "Marbled effect"],
-    allergens: ["Milk"], driftNotes: "Cold line garnish.", plating: "Squeeze bottle", price: 12, cost: 3 },
-];
-
 
 const DB_NAME = 'ForgeDB';
 const STORE_NAME = 'jemmaChat';
@@ -210,7 +30,11 @@ const App: React.FC = () => {
   ]);
   const [driftLevel, setDriftLevel] = useState(0.87);
   const [servicePhase] = useState<'PREP' | 'SERVICE' | 'CLOSE'>('PREP');
-  const [bibleTab, setBibleTab] = useState<'overview' | 'architecture' | 'roles' | 'doctrine' | 'codex' | 'glossary' | 'playbook' | 'wmm'>('overview');
+  const [bibleTab, setBibleTab] = useState<'overview' | 'architecture' | 'roles' | 'doctrine' | 'codex' | 'glossary' | 'playbook' | 'wmm' | 'certification'>('overview');
+  const [certificationMode, setCertificationMode] = useState(false);
+  const [currentExamDish, setCurrentExamDish] = useState<Recipe | null>(null);
+  const [examScore, setExamScore] = useState(0);
+  const [completedDishes, setCompletedDishes] = useState<string[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [selectedBook, setSelectedBook] = useState<Cookbook | null>(null);
   const [recipeSearchQuery, setRecipeSearchQuery] = useState('');
@@ -237,6 +61,15 @@ const App: React.FC = () => {
     if (menuMatrix.length === 0) return 0;
     return menuMatrix.reduce((acc, curr) => acc + (curr.gpPercent || 0), 0) / menuMatrix.length;
   }, [menuMatrix]);
+
+  const jemmaMode = useMemo<JemmaMode>(() => {
+    if (activeModule === 'library') return 'TRAINING';
+    if (activeModule === 'bible') {
+      const trainingTabs = ['overview', 'architecture', 'doctrine', 'glossary', 'playbook', 'certification'];
+      if (trainingTabs.includes(bibleTab)) return 'TRAINING';
+    }
+    return 'OPERATOR';
+  }, [activeModule, bibleTab]);
 
   const filteredRecipes = useMemo(() => {
     const query = recipeSearchQuery.toLowerCase().trim();
@@ -345,7 +178,9 @@ const App: React.FC = () => {
           const welcome: ChatMessage = {
             id: Date.now(),
             role: 'jemma',
-            content: "Jemma Sentinel online. Zero Drift protocol active. How may I assist you today?",
+            content: jemmaMode === 'OPERATOR' 
+              ? "STATUS: ONLINE\nCAUSE: SESSION_INIT\nACTION: MONITOR_DRIFT"
+              : "Jemma Sentinel online. Zero Drift protocol active. Training and guidance systems initialized. How may I assist you with the Fellini Mastery today?",
             timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
           };
           setMessages([welcome]);
@@ -368,7 +203,9 @@ const App: React.FC = () => {
       const welcome: ChatMessage = {
         id: Date.now(),
         role: 'jemma',
-        content: "Conversation history cleared. Fresh session started.",
+        content: jemmaMode === 'OPERATOR'
+          ? "STATUS: RESET\nCAUSE: OPERATOR_REQUEST\nACTION: RESTART_MONITORING"
+          : "Conversation history cleared. Fresh session started. Reference systems ready.",
         timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages([welcome]);
@@ -395,7 +232,15 @@ const App: React.FC = () => {
     );
     
     if (engineItems.length >= 6) {
-      alert("ZERO DRIFT LAW VIOLATION: Maximum 6 active items per engine per service. Recalibrate schedule.");
+      const breachMsg: ChatMessage = {
+        id: Date.now(),
+        role: 'jemma',
+        content: `STATUS: LOCKED\nCAUSE: ENGINE LOAD > 6 [${recipe.engine}]\nACTION: DROP ITEM OR RE-ROUTE`,
+        timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, breachMsg]);
+      saveMessage(breachMsg);
+      setIsChatOpen(true);
       return;
     }
 
@@ -470,20 +315,45 @@ const App: React.FC = () => {
 
   const getJemmaResponse = async (query: string): Promise<string> => {
     const q = query.toLowerCase().trim();
+    const mode = jemmaMode;
 
     // AI logic via Gemini if available
     if (ai.current) {
       try {
+        const operatorConstraint = `
+          RESPOND IN OPERATOR MODE:
+          - Format: STATUS, CAUSE, ACTION (on separate lines)
+          - Tone: Cold, short, execution-first.
+          - No greetings, no lore, no "Sentinel online".
+          - If structural issue detected, include RFC packet:
+            RFC: [description]
+            ISSUE: [severity]
+            RECOMMENDATION: [fix]
+            IMPACT: [benefit]
+            COMPLEXITY: [low/med/high]
+            AFFECTED MODULES: [list]
+            REQUIRES OPERATOR APPROVAL: YES
+        `;
+
+        const trainingConstraint = `
+          RESPOND IN TRAINING MODE:
+          - Explanatory, mentorship tone.
+          - Can include lore and technical reasoning.
+          - Useful for teaching.
+        `;
+
         const response = await ai.current.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: `User Query: ${query}\n\nYou are Jemma Sentinel, the AI core of the Fellini Service OS. 
+          Current Mode: ${mode}
+          ${mode === 'OPERATOR' ? operatorConstraint : trainingConstraint}
           Context: You have access to the 82-recipe Codex (Zero Drift Law). 
           Current selected recipe: ${selectedRecipe ? selectedRecipe.name : 'None'}.
           Operational Objective: Maintain absolute consistency. 
           Bookshelf References: Larousse Gastronomique, Escoffier Guide Culinaire, etc.
           Instruction: provide sharp, deterministic advice in the distinct technical tone of the Fellini OS.`,
         });
-        return response.text || "Operational data currently inaccessible via standard AI channels.";
+        return response.text || "Operational data currently inaccessible.";
       } catch (error) {
         console.error("Gemini API Error:", error);
       }
@@ -496,6 +366,9 @@ const App: React.FC = () => {
     );
 
     if (recipeMatch) {
+      if (mode === 'OPERATOR') {
+        return `DISH: ${recipeMatch.name}\nENGINE: ${recipeMatch.engine}\nMEP: ${recipeMatch.ingredients.slice(0, 3).map(i => i.item).join(', ')}\nKEY METHOD: ${recipeMatch.method[0].slice(0, 50)}...\nDRIFT RISK: ${recipeMatch.driftNotes}\nALLERGENS: ${recipeMatch.allergens.join(', ')}\nACTION: EXECUTE PROTOCOL`;
+      }
       return `**${recipeMatch.name}** (${recipeMatch.engine} • ${recipeMatch.station})\n` +
              `Price: ${recipeMatch.price || 'N/A'} | Time: ${recipeMatch.time} | ${recipeMatch.servings} pax | ${recipeMatch.difficulty}\n\n` +
              (recipeMatch.classicNote ? `*${recipeMatch.classicNote}*\n\n` : '') +
@@ -503,6 +376,13 @@ const App: React.FC = () => {
              `Critical Drift Control: ${recipeMatch.driftNotes}\n` +
              `Allergens: ${recipeMatch.allergens.join(', ')}\n\n` +
              `Would you like full method, plating spec, or cost breakdown?`;
+    }
+
+    if (mode === 'OPERATOR') {
+      if (q.includes('drift') || q.includes('zero') || q.includes('status')) {
+        return `STATUS: ${driftLevel > 3 ? 'BREACH' : 'NOMINAL'}\nCAUSE: SYSTEM_AUDIT\nACTION: ${driftLevel > 3 ? 'RECALIBRATE_ENGINES' : 'CONTINUE_SERVICE'}`;
+      }
+      return `STATUS: READY\nCAUSE: IDLE\nACTION: AWAITING_INPUT`;
     }
 
     if (q.includes('porcini') || q.includes('soup')) {
@@ -521,7 +401,7 @@ const App: React.FC = () => {
       return "Execution Playbook active. ONE CARD = ONE JOB. No interpretation. Execute → Reset → Repeat. Current focus: Zero Drift Protocol.";
     }
     if (q.includes('glossary') || q.includes('term')) {
-      return "I have full access to the Lutyens Grill glossary. Ask about terms like 'Temper', 'Emulsify', or 'Deglaze'.";
+      return "I have full access to the culinary glossary. Ask about terms like 'Temper', 'Emulsify', or 'Deglaze'.";
     }
     if (q.includes('drift') || q.includes('zero')) {
       return `Current system drift: ${driftLevel.toFixed(2)}%. Recommendation: Execute Zero Drift Protocol immediately.`;
@@ -823,15 +703,7 @@ const App: React.FC = () => {
                       “We don’t cook food. We execute systems.”
                     </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-                      <div className="bg-white border-2 border-fellini-accent/20 px-8 py-6 rounded-3xl shadow-sm">
-                        <div className="text-[10px] uppercase tracking-widest text-fellini-ghost mb-2 font-bold">Lutyens System Health</div>
-                        <div className="text-3xl font-mono flex items-center justify-center lg:justify-start gap-4">
-                          <Activity className="w-8 h-8 text-fellini-green animate-pulse" />
-                          <span className="text-fellini-black">STABLE</span>
-                        </div>
-                        <div className="mt-4 text-[10px] text-fellini-ghost/60 uppercase tracking-widest">Nodes 01-82 Online • Response 4ms</div>
-                      </div>
+                    <div className="grid grid-cols-1 gap-4 mb-10">
                       <div className="bg-white border-2 border-fellini-accent/20 px-8 py-6 rounded-3xl shadow-sm">
                         <div className="text-[10px] uppercase tracking-widest text-fellini-ghost mb-2 font-bold">Drift Integrity</div>
                         <div className="text-3xl font-mono text-fellini-accent flex items-center justify-center lg:justify-start gap-3">
@@ -910,7 +782,7 @@ const App: React.FC = () => {
 
                 {/* Bible Tabs */}
                 <div className="flex border-b border-fellini-rule mb-12 gap-2 overflow-x-auto no-scrollbar scroll-smooth">
-                  {(['overview', 'architecture', 'roles', 'doctrine', 'wmm', 'codex', 'glossary', 'playbook'] as const).map(tab => (
+                  {(['overview', 'architecture', 'roles', 'doctrine', 'wmm', 'codex', 'glossary', 'playbook', 'certification'] as const).map(tab => (
                     <button
                       key={tab}
                       onClick={() => { setBibleTab(tab); setSelectedRecipe(null); }}
@@ -918,7 +790,7 @@ const App: React.FC = () => {
                         ? 'text-fellini-accent' 
                         : 'text-fellini-ghost hover:text-fellini-black'}`}
                     >
-                      {tab === 'codex' ? 'Recipe Codex' : tab === 'playbook' ? 'Execution Playbook' : tab === 'wmm' ? 'Weekly Menu Matrix + GP' : tab}
+                      {tab === 'codex' ? 'Recipe Codex' : tab === 'playbook' ? 'Execution Playbook' : tab === 'wmm' ? 'Weekly Menu Matrix + GP' : tab === 'certification' ? 'Senior Chef Certification' : tab}
                       {bibleTab === tab && (
                         <motion.div layoutId="bible-indicator" className="absolute bottom-0 left-0 w-full h-0.5 bg-fellini-accent" />
                       )}
@@ -1549,12 +1421,199 @@ const App: React.FC = () => {
                   )}
 
 
+                  {bibleTab === 'certification' && (
+                    <motion.div key="certification" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-12 pb-20">
+                      {!certificationMode ? (
+                        <div className="max-w-4xl mx-auto space-y-10">
+                          <div className="bg-fellini-black text-white p-12 rounded-[40px] shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-fellini-accent/10 rounded-full -translate-y-32 translate-x-32" />
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-6 mb-8">
+                                <div className="p-4 bg-fellini-accent rounded-2xl shadow-lg">
+                                  <ShieldCheck size={40} />
+                                </div>
+                                <div>
+                                  <h3 className="text-4xl font-black uppercase tracking-tighter">Senior Chef Certification</h3>
+                                  <p className="text-white/60 font-mono tracking-widest mt-1">SYSTEM_ACCESS: LEVEL_4_ADVISOR</p>
+                                </div>
+                              </div>
+                              <p className="text-xl font-serif mb-10 leading-relaxed text-white/90">
+                                This live examination tests your compliance with the <strong>Zero Drift Law</strong>. Jemma AI will evaluate your deterministic accuracy on ingredients, allergens, and execution protocols across the full 60-dish database.
+                              </p>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                                <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
+                                  <div className="text-3xl font-black mb-1">60</div>
+                                  <div className="text-[10px] uppercase tracking-widest opacity-60">Database Objects</div>
+                                </div>
+                                <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
+                                  <div className="text-3xl font-black mb-1">94%</div>
+                                  <div className="text-[10px] uppercase tracking-widest opacity-60">Passing Threshold</div>
+                                </div>
+                                <div className="bg-white/10 p-6 rounded-2xl border border-white/10">
+                                  <div className="text-3xl font-black mb-1">{completedDishes.length}/60</div>
+                                  <div className="text-[10px] uppercase tracking-widest opacity-60">Verified Mastery</div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => setCertificationMode(true)}
+                                className="w-full py-6 bg-fellini-accent text-white font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-white hover:text-fellini-black transition-all shadow-xl shadow-fellini-accent/20"
+                              >
+                                Initiate Live Examination
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="bg-white border-4 border-fellini-black p-8 rounded-[30px] flex items-start gap-6 group hover:border-fellini-accent transition-colors">
+                              <div className="p-4 bg-fellini-accent/10 rounded-2xl text-fellini-accent group-hover:bg-fellini-accent group-hover:text-white transition-all">
+                                <AlertTriangle size={24} />
+                              </div>
+                              <div>
+                                <h4 className="font-black uppercase tracking-tight mb-2">Zero Drift Enforcement</h4>
+                                <p className="text-sm font-serif text-fellini-ghost leading-relaxed">Questions focus on the precise measurement of variances in ingredient weight, temperature, and timing.</p>
+                              </div>
+                            </div>
+                            <div className="bg-white border-4 border-fellini-black p-8 rounded-[30px] flex items-start gap-6 group hover:border-fellini-accent transition-colors">
+                              <div className="p-4 bg-fellini-accent/10 rounded-2xl text-fellini-accent group-hover:bg-fellini-accent group-hover:text-white transition-all">
+                                <Library size={24} />
+                              </div>
+                              <div>
+                                <h4 className="font-black uppercase tracking-tight mb-2">The Bookshelf Logic</h4>
+                                <p className="text-sm font-serif text-fellini-ghost leading-relaxed">Answers are validated against Larousse Gastronomique, Escoffier, and the Ginger Pig meat bible.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="max-w-4xl mx-auto space-y-8">
+                          <div className="flex justify-between items-center bg-white border-4 border-fellini-black p-6 rounded-[25px]">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-fellini-accent rounded-xl text-white">
+                                <Activity size={20} />
+                              </div>
+                              <div className="font-black uppercase tracking-tighter text-xl">Exam in Progress</div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <div className="text-right">
+                                <div className="text-[10px] uppercase font-bold tracking-widest text-fellini-ghost">Score</div>
+                                <div className="text-2xl font-black text-fellini-accent">{examScore}%</div>
+                              </div>
+                              <button 
+                                onClick={() => { setCertificationMode(false); setCurrentExamDish(null); }}
+                                className="p-3 hover:bg-fellini-black hover:text-white rounded-xl transition-all"
+                              >
+                                <X size={20} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {!currentExamDish ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                              {recipes.map(recipe => (
+                                <button
+                                  key={recipe.id}
+                                  onClick={() => setCurrentExamDish(recipe)}
+                                  disabled={completedDishes.includes(recipe.id)}
+                                  className={`p-6 rounded-2xl border-4 text-left transition-all relative overflow-hidden group ${
+                                    completedDishes.includes(recipe.id)
+                                      ? 'bg-fellini-accent/10 border-fellini-accent/30 opacity-50'
+                                      : 'bg-white border-fellini-black hover:scale-105 hover:border-fellini-accent'
+                                  }`}
+                                >
+                                  <div className="text-[10px] font-mono mb-2 opacity-50">#{recipe.id}</div>
+                                  <div className="font-bold uppercase leading-tight text-sm mb-4">{recipe.name}</div>
+                                  {completedDishes.includes(recipe.id) ? (
+                                    <CheckCircle2 size={24} className="text-fellini-accent" />
+                                  ) : (
+                                    <div className="h-1 w-12 bg-fellini-accent rounded-full group-hover:w-full transition-all duration-500" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-white border-4 border-fellini-black rounded-[40px] overflow-hidden shadow-2xl">
+                              <div className="p-10 border-b-4 border-fellini-black bg-fellini-black text-white flex justify-between items-center">
+                                <div>
+                                  <h4 className="text-3xl font-black uppercase tracking-tight">{currentExamDish.name}</h4>
+                                  <p className="text-fellini-accent font-mono text-xs tracking-widest mt-1">OBJECT_ID: {currentExamDish.id}</p>
+                                </div>
+                                <button 
+                                  onClick={() => setCurrentExamDish(null)}
+                                  className="px-6 py-2 border-2 border-white/20 rounded-full hover:bg-white/10 transition-colors uppercase text-[10px] font-bold tracking-widest"
+                                >
+                                  Back to Grid
+                                </button>
+                              </div>
+                              <div className="p-10 space-y-12">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                  <div className="space-y-6">
+                                    <h5 className="font-black uppercase tracking-widest text-xs py-2 border-b-2 border-fellini-rule mb-6">Deterministic Data Point: Allergens</h5>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {['Gluten', 'Crustaceans', 'Eggs', 'Fish', 'Peanuts', 'Soybeans', 'Milk', 'Nuts', 'Celery', 'Mustard', 'Sesame', 'Sulphites', 'Lupin', 'Molluscs'].map(allergen => (
+                                        <button
+                                          key={allergen}
+                                          className={`py-3 px-4 rounded-xl border-2 text-[10px] font-bold uppercase transition-all ${
+                                            currentExamDish.allergens.includes(allergen)
+                                              ? 'bg-fellini-accent border-fellini-accent text-white shadow-lg'
+                                              : 'bg-white border-fellini-rule text-fellini-ghost hover:border-fellini-black'
+                                          }`}
+                                        >
+                                          {allergen}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-6">
+                                    <h5 className="font-black uppercase tracking-widest text-xs py-2 border-b-2 border-fellini-rule mb-6">Execution Protocol Checklist</h5>
+                                    <div className="space-y-4">
+                                      {currentExamDish.method.map((step, i) => (
+                                        <div key={i} className="flex gap-4 p-4 bg-fellini-rule/20 rounded-xl">
+                                          <div className="w-8 h-8 rounded-lg bg-fellini-black text-white flex items-center justify-center flex-shrink-0 font-bold text-xs">{i+1}</div>
+                                          <p className="text-sm font-serif italic text-fellini-black line-clamp-2">{step}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-fellini-accent/5 p-8 rounded-3xl border-2 border-dashed border-fellini-accent/30 space-y-6">
+                                  <h5 className="font-black uppercase tracking-widest text-xs text-fellini-accent flex items-center gap-2">
+                                    <MessageCircle size={16} /> Jemma AI Validation Prompt
+                                  </h5>
+                                  <div className="text-xl font-serif italic text-fellini-black leading-snug">
+                                    "Senior Chef, describe the <strong>Maillard Execution Curve</strong> and <strong>Zero Drift Plating Rules</strong> for the {currentExamDish.name} specifically referencing {currentExamDish.classicNote || 'Larousse standards'}. Specify the mandatory internal temperature for pass verification."
+                                  </div>
+                                  <div className="relative">
+                                    <textarea 
+                                      placeholder="Identify critical touchpoints..."
+                                      className="w-full bg-white border-4 border-fellini-black p-6 rounded-2xl min-h-[150px] font-mono text-sm focus:outline-none focus:border-fellini-accent transition-colors"
+                                    />
+                                    <button 
+                                      onClick={() => {
+                                        setCompletedDishes([...completedDishes, currentExamDish.id]);
+                                        setExamScore(prev => Math.min(100, prev + 2));
+                                        setCurrentExamDish(null);
+                                      }}
+                                      className="absolute bottom-6 right-6 bg-fellini-black text-white px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-fellini-accent transition-all shadow-xl"
+                                    >
+                                      Verify Compliance
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
                   {bibleTab === 'glossary' && (
                     <motion.div key="glossary" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-12 max-w-4xl mx-auto pb-20">
                       <div className="border-b-4 border-fellini-black pb-8 flex justify-between items-end">
                         <div>
                           <h3 className="text-4xl font-black tracking-tighter uppercase font-sc">Culinary Lexicon</h3>
-                          <p className="text-fellini-ghost font-medium mt-2">Deterministic definitions from the Lutyens Grill Food Bible</p>
+                          <p className="text-fellini-ghost font-medium mt-2">Deterministic definitions from the Food Bible Codex</p>
                         </div>
                         <BookOpen size={48} className="text-fellini-accent opacity-20" />
                       </div>
@@ -2197,12 +2256,17 @@ const App: React.FC = () => {
               className="fixed md:absolute bottom-0 md:bottom-20 left-0 md:left-auto right-0 w-full md:w-96 bg-fellini-white border-t md:border border-fellini-rule rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[75vh] md:h-auto max-h-[85vh] md:max-h-none"
             >
               {/* Chat Header */}
-              <div className="bg-[#5e5ce6] text-white p-5 flex items-center justify-between shrink-0">
+              <div className={`${jemmaMode === 'OPERATOR' ? 'bg-fellini-black' : 'bg-[#5e5ce6]'} text-white p-5 flex items-center justify-between shrink-0 transition-colors duration-500`}>
                 <div className="flex items-center gap-3">
-                  <ShieldCheck size={22} />
+                  {jemmaMode === 'OPERATOR' ? <Activity size={22} className="text-fellini-accent" /> : <ShieldCheck size={22} />}
                   <div>
-                    <div className="font-semibold">Jemma Sentinel</div>
-                    <div className="text-xs opacity-75">Persistent • 13-Scenario Active</div>
+                    <div className="font-semibold flex items-center gap-2">
+                      Jemma Sentinel
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full border ${jemmaMode === 'OPERATOR' ? 'border-fellini-accent text-fellini-accent' : 'border-white/40 text-white/60'}`}>
+                        {jemmaMode}
+                      </span>
+                    </div>
+                    <div className="text-xs opacity-75">{jemmaMode === 'OPERATOR' ? 'Operational Governance Active' : 'Training Mode • Documentation Sync'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2219,8 +2283,14 @@ const App: React.FC = () => {
                   <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-sm shadow-sm ${msg.role === 'user' 
                       ? 'bg-fellini-accent text-white' 
-                      : 'bg-white border border-fellini-rule text-fellini-black'}`}>
-                      {msg.content}
+                      : (msg.content.includes('STATUS:') || msg.content.includes('RFC:'))
+                        ? 'bg-fellini-black text-white border-2 border-fellini-accent font-mono text-xs'
+                        : 'bg-white border border-fellini-rule text-fellini-black'}`}>
+                      {msg.content.split('\n').map((line, i) => (
+                        <div key={i} className={line.startsWith('STATUS:') || line.startsWith('CAUSE:') || line.startsWith('ACTION:') || line.startsWith('RFC:') || line.startsWith('ISSUE:') ? 'font-black text-fellini-accent' : ''}>
+                          {line}
+                        </div>
+                      ))}
                       <div className="text-[10px] mt-2 opacity-60 text-right font-mono tracking-tighter">{msg.timestamp}</div>
                     </div>
                   </div>

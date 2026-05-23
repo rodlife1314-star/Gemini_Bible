@@ -1,4 +1,5 @@
 export type Module = 'octagon' | 'bible' | 'drift' | 'staff' | 'inventory' | 'service' | 'prophecy' | 'library';
+export type JemmaMode = 'TRAINING' | 'OPERATOR';
 
 export interface ChatMessage {
   id: number;

@@ -135,12 +135,12 @@ export const baseRecipes: Recipe[] = [
     method: ["Temper, season, cook decisively", "Rest properly", "Slice if required"],
     allergens: [], driftNotes: "Rested protein & glossy sauce critical.", plating: "Main plate", price: 31.95, cost: 11.50 },
 
-  // LUTYENS GRILL
-  { id: "lg001", name: "Lutyens Butcher Burger", engine: "Helios", station: "Grill", time: "12 min", servings: 1, difficulty: "Line",
+  // FORGE GRILL
+  { id: "lg001", name: "Forge Butcher Burger", engine: "Helios", station: "Grill", time: "12 min", servings: 1, difficulty: "Line",
     ingredients: [{item:"Dry-aged Beef",qty:"180g",prep:"minced"},{item:"Brioche Bun",qty:"1",prep:"toasted"},{item:"Specific Pickle",qty:"20g",prep:""}],
     method: ["Grill medium-well unless specified", "Steam cheese for 30s", "Assemble in order: Bottom Bun -> Sauce -> Lettuce -> Meat -> Top Bun"],
     allergens: ["Gluten","Milk","Sesame"], driftNotes: "Vertical alignment must be vertical. No sliding.", plating: "Paper lined tray", price: 24, cost: 7.20 },
-  { id: "lg002", name: "Beef Carpaccio (Lutyens)", engine: "Luna", station: "Cold", time: "4 min", servings: 1, difficulty: "Line",
+  { id: "lg002", name: "Beef Carpaccio (Forge)", engine: "Luna", station: "Cold", time: "4 min", servings: 1, difficulty: "Line",
     ingredients: [{item:"Beef Fillet",qty:"80g",prep:"raw, thinly sliced"}],
     method: ["Slice beef thin", "Dress with cipriani sauce", "Finish with parmesan & rocket"],
     allergens: ["Egg", "Mustard"], driftNotes: "Beef must be at exact 4°C", plating: "Starter plate", price: 22, cost: 6.50, classicNote: "Cipriani / Escoffier raw preparation" },
@@ -231,7 +231,7 @@ export const baseRecipes: Recipe[] = [
   { id: "f003", name: "Smoked Garlic Butter", engine: "Luna", station: "Prep", time: "10 min", servings: 10, difficulty: "Operator",
     ingredients: [{item:"Butter",qty:"1kg",prep:""},{item:"Smoked Garlic",qty:"100g",prep:"purée"}],
     method: ["Beat butter with garlic purée", "Roll and chill"],
-    allergens: ["Milk"], driftNotes: "Lutyens signature steak finish.", plating: "Butter dish", price: 12, cost: 3 },
+    allergens: ["Milk"], driftNotes: "Forge signature steak finish.", plating: "Butter dish", price: 12, cost: 3 },
   { id: "f004", name: "Potato Bun (Toasted)", engine: "Helios", station: "Hot Line", time: "2 min", servings: 1, difficulty: "Line",
     ingredients: [{item:"Bun",qty:"1",prep:""},{item:"Butter",qty:"5g",prep:""}],
     method: ["Butter and toast cut side until golden"],
